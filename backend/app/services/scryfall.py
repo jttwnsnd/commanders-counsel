@@ -1,7 +1,9 @@
-import json
 import httpx
-from app.core.constants import APP_VERSION
+import json
 from pathlib import Path
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.constants import APP_VERSION
+from app.models.card import Card
 
 SCRYFALL_BULK_DATA_URL = "https://api.scryfall.com/bulk-data"
 
