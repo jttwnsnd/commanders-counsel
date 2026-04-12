@@ -6,6 +6,8 @@ from alembic import context
 from app.db.database import Base
 from app.models.card import Card
 from app.models.user import User
+from app.models.conversation import Conversation
+from app.models.message import Message
 from app.core.config import settings
 
 # this is the Alembic Config object, which provides
