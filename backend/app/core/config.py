@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     DATABASE_URL: str
     ANTHROPIC_API_KEY: str = ""
+    GROQ_API_KEY: str = ""
     SECRET_KEY: str
 
     class Config:

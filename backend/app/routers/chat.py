@@ -44,9 +44,9 @@ async def send_message(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    result = await deb.execute(
+    result = await db.execute(
         select(Conversation).where(
-            Conversation.id == body.conversation.id,
+            Conversation.id == body.conversation_id,
             Conversation.user_id == current_user.id
         )
     )
@@ -65,7 +65,7 @@ async def send_message(
         for m in history_result.scalars().all()
     ]
 
-    cards = await search_relevant_cards(nody.message, db)
+    cards = await search_relevant_cards(body.message, db)
     card_context = format_cards_for_prompt(cards)
 
     user_message = Message(

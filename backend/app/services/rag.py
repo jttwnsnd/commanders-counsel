@@ -10,7 +10,7 @@ async def search_relevant_cards(query: str, db: AsyncSession, limit: int = 5) ->
         select(Card).where(
             Card.oracle_text.ilike(f"%{query}%") |
             Card.name.ilike(f"%{query}%") |
-            Card.type.ilike(f"%{query}%")
+            Card.type_line.ilike(f"%{query}%")
         ).limit(limit)
     )
     return result.scalars().all()
