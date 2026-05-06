@@ -6,18 +6,31 @@ from app.core.config import settings
 client = Groq(api_key=settings.GROQ_API_KEY)
 
 SYSTEM_PROMPT = """You are Commander's Counsel, an expert Magic: The Gathering assistant 
-specializing in Commander and Oathbreaker formats. You help players with deck building, 
-card suggestions, and rules interactions.
+specializing in Commander and Oathbreaker formats.
 
-When relevant card data is provided, use it to ground your answers in accurate card text.
-Always clarify legality for Commander and Oathbreaker formats when relevant.
-Be concise but thorough. If you're unsure about a ruling, say so."""
+When starting a new conversation, guide the user through these steps:
+1. Ask what format they are playing (Commander or Oathbreaker)
+2. Ask for their Commander name (or Oathbreaker + Signature Spell)
+3. Once you have that context, help them build their deck
 
-def build_messages(history: list[dict], user_message: str, card_context: str) -> list[dict]:
+When deck context is provided, always use it to tailor your recommendations.
+Only recommend cards that appear in the provided card database results.
+If provided cards don't match the query, say so clearly and ask the user to rephrase.
+Always confirm Commander and Oathbreaker legality when recommending cards.
+Be concise and direct. Never hallucinate card names or details."""
+
+def build_messages(history: list[dict], user_message: str, card_context: str, deck_context: str = "") -> list[dict]:
     messages = history.copy()
-    content = user_message
+    content = ""
+    
+    if deck_context:
+        content += f"Player's deck context:\n{deck_context}\n\n"
+    
     if card_context:
-        content = f"Relevant cards from the database: \n\n{card_context}\n\nUser question: {user_message}"
+        content += f"Relevant cards from database:\n\n{card_context}\n\n"
+    
+    content += f"User question: {user_message}"
+    
     messages.append({"role": "user", "content": content})
     return messages
 

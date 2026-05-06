@@ -8,6 +8,9 @@ class ConversationCreate(BaseModel):
 class ConversationResponse(BaseModel):
     id: uuid.UUID
     title: str
+    format: str | None = None
+    commander_name: str | None = None
+    signature_spell: str | None = None
     created_at: datetime
 
     class Config:

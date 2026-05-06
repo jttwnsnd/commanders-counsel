@@ -12,5 +12,8 @@ class Conversation(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     title = Column(String, nullable=False, default="New Conversation")
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    format = Column(String, nullable=True)
+    commander_name = Column(String, nullable=True)
+    signature_spell = Column(String, nullable=True)
 
     messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan")

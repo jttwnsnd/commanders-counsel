@@ -6,11 +6,12 @@ from app.db.database import get_db
 from app.models.conversation import Conversation
 from app.models.message import Message
 from app.models.user import User
-from app.schemas.chat import ConversationCreate, ConversationResponse, ChatRequest
+from app.schemas.chat import ConversationCreate, ConversationResponse, ChatRequest, MessageResponse
 from app.services.rag import search_relevant_cards, format_cards_for_prompt
 from app.services.chat import stream_chat_response, build_messages
 from app.routers.auth import get_current_user
 import json
+import uuid
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -24,6 +25,16 @@ async def create_conversation(
     db.add(conversation)
     await db.commit()
     await db.refresh(conversation)
+
+    # Auto-insert opening message
+    opening_message = Message(
+        conversation_id=conversation.id,
+        role="assistant",
+        content="Welcome to Commander's Counsel! ⚔️\n\nTo help you build the best deck, let's start with some context.\n\nWhat format are you playing — **Commander** or **Oathbreaker**?"
+    )
+    db.add(opening_message)
+    await db.commit()
+
     return conversation
 
 @router.get("/conversations", response_model=list[ConversationResponse])
@@ -76,7 +87,17 @@ async def send_message(
     db.add(user_message)
     await db.commit()
 
-    messages = build_messages(history, body.message, card_context)
+    # Build deck context string
+    deck_context = ""
+    if conversation.format:
+        deck_context += f"Format: {conversation.format}\n"
+    if conversation.commander_name:
+        deck_context += f"Commander: {conversation.commander_name}\n"
+    if conversation.signature_spell:
+        deck_context += f"Signature Spell: {conversation.signature_spell}\n"
+
+    # Build messages for Groq
+    messages = build_messages(history, body.message, card_context, deck_context)
 
     full_response = []
 
@@ -93,3 +114,54 @@ async def send_message(
         db.add(assistant_message)
         await db.commit()
     return StreamingResponse(generate(), media_type="text/plain")
+
+@router.get("/conversations/{conversation_id}/messages", response_model=list[MessageResponse])
+async def get_messages(
+    conversation_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    result = await db.execute(
+        select(Conversation).where(
+            Conversation.id == conversation_id,
+            Conversation.user_id == current_user.id
+        )
+    )
+    if not result.scalars().first():
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    messages = await db.execute(
+        select(Message)
+        .where(Message.conversation_id == conversation_id)
+        .order_by(Message.created_at.asc())
+    )
+    return messages.scalars().all()
+
+@router.patch("/conversations/{conversation_id}/context")
+async def update_conversation_context(
+    conversation_id: uuid.UUID,
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    result = await db.execute(
+        select(Conversation).where(
+            Conversation.id == conversation_id,
+            Conversation.user_id == current_user.id
+        )
+    )
+    conversation = result.scalars().first()
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    if "format" in body:
+        conversation.format = body["format"]
+    if "commander_name" in body:
+        conversation.commander_name = body["commander_name"]
+        conversation.title = f"{body['commander_name']} Deck"
+    if "signature_spell" in body:
+        conversation.signature_spell = body["signature_spell"]
+
+    await db.commit()
+    await db.refresh(conversation)
+    return conversation
