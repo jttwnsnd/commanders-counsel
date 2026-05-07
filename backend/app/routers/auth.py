@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, Cookie
+from fastapi import APIRouter, Depends, HTTPException, Response, Cookie, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.db.database import get_db
+from app.core.limiter import limiter
 from app.models.user import User
 from app.schemas.user import UserRegister, UserLogin, UserResponse
 from app.services.auth import hash_password, verify_password, create_access_token, decode_access_token
@@ -10,7 +11,8 @@ from typing import Optional
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register", response_model=UserResponse)
-async def register(body: UserRegister, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def register(request: Request, body: UserRegister, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == body.email))
     if result.scalars().first():
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -21,7 +23,8 @@ async def register(body: UserRegister, db: AsyncSession = Depends(get_db)):
     return user
 
 @router.post("/login")
-async def login(body: UserLogin, response: Response, db: AsyncSession = Depends(get_db)):
+@limiter.limit("10/minute")
+async def login(request: Request, body: UserLogin, response: Response, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == body.email))
     user = result.scalars().first()
     if not user or not verify_password(body.password, user.hashed_password):

@@ -12,3 +12,4 @@ python-jose[cryptography]
 pydantic[email]
 anthropic
 groq
+slowapi

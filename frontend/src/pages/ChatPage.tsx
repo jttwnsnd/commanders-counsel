@@ -7,6 +7,18 @@ import { useAuth } from '../context/AuthContext'
 export default function ChatPage(){
     const { logout, user } = useAuth()
     const [ activeConversation, setActiveConversation ] = useState<Conversation | null>(null)
+
+    const handleConversationUpdate = (updated: Conversation) => {
+        if (activeConversation?.id === updated.id) {
+            setActiveConversation(updated)
+        }
+    }
+
+    const handleConversationDelete = (id: string) => {
+        if (activeConversation?.id === id) {
+            setActiveConversation(null)
+        }
+    }
     return (
         <div className="flex h-screen bg-gray-900 text-white">
             {/* Sidebar */}
@@ -18,6 +30,8 @@ export default function ChatPage(){
                 <ConversationList
                     activeConversation={activeConversation}
                     onSelect={setActiveConversation}
+                    onConversationUpdate={handleConversationUpdate}
+                    onConversationDelete={handleConversationDelete}
                     />
                 <div className="p-4 border-t border-gray-700">
                     <button

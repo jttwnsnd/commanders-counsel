@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.db.database import get_db
+from app.core.limiter import limiter
 from app.models.conversation import Conversation
 from app.models.message import Message
 from app.models.user import User
@@ -50,7 +51,9 @@ async def get_conversations(
     return result.scalars().all()
 
 @router.post("/message")
+@limiter.limit("10/minute")
 async def send_message(
+    request: Request,
     body: ChatRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -165,3 +168,45 @@ async def update_conversation_context(
     await db.commit()
     await db.refresh(conversation)
     return conversation
+
+@router.patch("/conversations/{conversation_id}/title")
+async def update_conversation_title(
+    conversation_id: uuid.UUID,
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    result = await db.execute(
+        select(Conversation).where(
+            Conversation.id == conversation_id,
+            Conversation.user_id == current_user.id
+        )
+    )
+    conversation = result.scalars().first()
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    conversation.title = body.get("title", conversation.title)
+    await db.commit()
+    await db.refresh(conversation)
+    return conversation
+
+@router.delete("/conversations/{conversation_id}")
+async def delete_conversation(
+    conversation_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    result = await db.execute(
+        select(Conversation).where(
+            Conversation.id == conversation_id,
+            Conversation.user_id == current_user.id
+        )
+    )
+    conversation = result.scalars().first()
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    await db.delete(conversation)
+    await db.commit()
+    return {"message": "Conversation deleted"}
