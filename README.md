@@ -41,9 +41,7 @@ React/TS Frontend (Vite)
 FastAPI Backend
 ↕                    ↕
 Groq API            PostgreSQL
-(cards + users
-+ conversations
-+ messages)
+(cards + users + conversations + messages)
 
 **RAG Flow:**
 1. User sends a message
